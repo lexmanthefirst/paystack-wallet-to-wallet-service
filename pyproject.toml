@@ -4,25 +4,27 @@ version = "0.1.0"
 description = "Paystack wallet to wallet service with API key authentication"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "sqlalchemy>=2.0.0",
-    "alembic>=1.13.0",
-    "aiosqlite>=0.19.0",
-    "httpx>=0.25.0",
-    "python-jose[cryptography]>=3.3.0",
+    "fastapi>=0.124.0",
+    "uvicorn[standard]>=0.38.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "sqlalchemy>=2.0.44",
+    "alembic>=1.17.2",
+    "aiosqlite>=0.21.0",
+    "httpx>=0.28.1",
+    "python-jose[cryptography]>=3.5.0",
     "passlib[bcrypt]>=1.7.4",
-    "python-multipart>=0.0.6",
-    "authlib>=1.3.0",
-    "itsdangerous>=2.1.2",
+    "python-multipart>=0.0.20",
+    "authlib>=1.6.5",
+    "itsdangerous>=2.2.0",
+    "asyncpg>=0.31.0",
+    "email-validator==2.3.0"
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
-    "httpx>=0.25.0",
+    "httpx>=0.28.0",
     "pytest-asyncio>=0.21.0",
     "ruff>=0.1.0",
 ]
@@ -30,3 +32,6 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
