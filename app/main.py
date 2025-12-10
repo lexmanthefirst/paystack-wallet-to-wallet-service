@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.db.session import init_db, engine
 from app.api import app as api_router
@@ -35,17 +34,6 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
-)
-
-# SessionMiddleware
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=settings.SECRET_KEY,
-    max_age=3600,
-    same_site="lax",
-    https_only=False,
-    session_cookie="wallet_session",
-    path="/"
 )
 
 # Add correlation ID middleware (for request tracking)
