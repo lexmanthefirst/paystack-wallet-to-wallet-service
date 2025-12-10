@@ -32,7 +32,7 @@ class Transaction(BaseModel):
     amount = Column(Numeric(precision=10, scale=2), nullable=False)
     reference = Column(String, unique=True, nullable=False, index=True)
     status = Column(SQLEnum(TransactionStatus), default=TransactionStatus.PENDING, nullable=False)
-    metadata = Column(JSON, nullable=True)  # Additional data: recipient_wallet, sender_wallet, etc.
+    meta = Column(JSON, nullable=True)  # Additional data: recipient_wallet, sender_wallet, etc.
     
     # Relationships
     wallet = relationship("Wallet", back_populates="transactions")
