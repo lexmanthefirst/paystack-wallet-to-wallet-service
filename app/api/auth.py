@@ -35,9 +35,7 @@ async def google_login(request: Request):
     Triggers Google sign-in.
     Redirects the user to the Google OAuth consent screen.
     """
-    # Do not manually clear session here as it might interfere with authlib's state storage
-    # request.session.clear() 
-    
+ 
     redirect_uri = settings.GOOGLE_REDIRECT_URI
     logger.info(f"Initiating Google login with redirect_uri: {redirect_uri}")
     logger.debug(f"Session before redirect: {request.session.keys()}")
@@ -85,7 +83,7 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
             data={"sub": str(user.id), "email": user.email}
         )
         
-        # Clear session cookies (we use JWT for auth now)
+        # Clear session cookies
         request.session.clear()
 
         # Return Success Response with JWT
