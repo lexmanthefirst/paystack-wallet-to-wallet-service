@@ -12,24 +12,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100
 
-# Install system dependencies (required for psycopg2/asyncpg build if wheels missing, and curl for healthcheck)
+# Install system dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        curl \
-        gcc \
-        libpq-dev \
+    curl \
+    gcc \
+    libpq-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project definition
+# Copy project files needed for installation
 COPY pyproject.toml .
+COPY app ./app
 
 # Install dependencies
-# We use 'pip install .' which reads pyproject.toml
 RUN pip install --no-cache-dir .
-
-# Copy application code
-COPY app ./app
 
 # Expose port
 EXPOSE 8000
