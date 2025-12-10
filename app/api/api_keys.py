@@ -53,7 +53,6 @@ async def create_api_key(
             message=str(e)
         )
     except Exception as e:
-        # Log unexpected errors for debugging
         import logging
         logging.error(f"API key creation failed: {str(e)}", exc_info=True)
         return fail_response(
