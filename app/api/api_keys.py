@@ -112,6 +112,7 @@ async def create_api_key(
             status_code=status.HTTP_201_CREATED,
             message="API key created successfully",
             data={
+                "key_id": str(api_key.id),
                 "api_key": plain_key,
                 "expires_at": api_key.expires_at.isoformat(),
                 "name": api_key.name,
@@ -202,6 +203,7 @@ async def rollover_api_key(
             status_code=status.HTTP_200_OK,
             message="API key rolled over successfully",
             data={
+                "key_id": str(api_key.id),
                 "api_key": plain_key,
                 "expires_at": api_key.expires_at.isoformat(),
                 "name": api_key.name,
