@@ -48,7 +48,7 @@ class PaystackService:
             "email": email,
             "amount": amount_kobo,
             "reference": reference,
-            "callback_url": f"{settings.GOOGLE_REDIRECT_URI.rsplit('/', 2)[0]}/wallet/payment/callback"
+            "callback_url": f"{settings.APP_BASE_URL}/api/v1/wallet/payment/callback"
         }
         
         async with httpx.AsyncClient() as client:

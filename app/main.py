@@ -1,30 +1,33 @@
 from contextlib import asynccontextmanager
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.config import settings
 from app.db.session import init_db, engine
+from app.core.redis import init_redis, close_redis
 from app.api import app as api_router
 from app.middleware.correlation import CorrelationIdMiddleware
+from app.middleware.security import SecurityHeadersMiddleware
 from app.utils.logger import logger
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifespan - handles startup and shutdown events.
-    """
+    """Application lifespan - handles startup and shutdown events."""
     # Startup
     logger.info("Starting %s v%s", settings.APP_NAME, settings.APP_VERSION)
     await init_db()
-    logger.info("Database initialized successfully")
+    await init_redis()
+    logger.info("Database and Redis initialized successfully")
     
     yield
     
     # Shutdown
     logger.info("Shutting down %s", settings.APP_NAME)
     await engine.dispose()
-    logger.info("Database connections closed")
+    await close_redis()
+    logger.info("Database and Redis connections closed")
 
 
 app = FastAPI(
@@ -39,13 +42,25 @@ app = FastAPI(
 # Add correlation ID middleware (for request tracking)
 app.add_middleware(CorrelationIdMiddleware)
 
-# Configure CORS
+# Add security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Configure CORS with restricted origins
+ALLOWED_ORIGINS = settings.CORS_ALLOWED_ORIGINS.split(',') if settings.CORS_ALLOWED_ORIGINS else []
+
+if settings.DEBUG:
+    ALLOWED_ORIGINS.extend([
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Correlation-ID"],
+    max_age=3600,
 )
 
 

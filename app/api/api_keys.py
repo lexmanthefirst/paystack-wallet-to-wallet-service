@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from datetime import timedelta
+from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.session import get_db
 from app.models import User
 from app.schemas.api_key import APIKeyCreate, APIKeyRollover, APIKeyRevoke
 from app.services import api_key as api_key_service
 from app.api.deps import get_current_user_from_token
 from app.utils.responses import success_response, fail_response
+from app.utils.rate_limit import rate_limit
 
 router = APIRouter(prefix="/keys", tags=["API Keys"])
 
@@ -22,7 +25,9 @@ async def require_jwt_auth(current_user: User = Depends(get_current_user_from_to
 
 
 @router.post("/create", status_code=status.HTTP_201_CREATED, summary="Create API Key")
+@rate_limit(max_requests=3, window=timedelta(hours=1))
 async def create_api_key(
+    request: Request,
     key_data: APIKeyCreate,
     current_user: User = Depends(require_jwt_auth),
     db: AsyncSession = Depends(get_db)

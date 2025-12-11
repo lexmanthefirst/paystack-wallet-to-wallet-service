@@ -1,6 +1,8 @@
 import json
+from datetime import timedelta
 from fastapi import APIRouter, Depends, status, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.session import get_db
 from app.models import User
 from app.schemas.wallet import DepositRequest, TransferRequest
@@ -9,13 +11,15 @@ from app.services import transaction as transaction_service
 from app.services.paystack import paystack_service
 from app.api.deps import get_current_user, require_permissions
 from app.utils.responses import success_response, fail_response
-
+from app.utils.rate_limit import rate_limit
 
 router = APIRouter(prefix="/wallet", tags=["Wallet"])
 
 
 @router.post("/deposit")
+@rate_limit(max_requests=5, window=timedelta(minutes=1))
 async def deposit_to_wallet(
+    request: Request,
     deposit_data: DepositRequest,
     current_user: User = Depends(require_permissions(["deposit"])),
     db: AsyncSession = Depends(get_db)
