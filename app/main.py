@@ -1,30 +1,33 @@
 from contextlib import asynccontextmanager
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.config import settings
 from app.db.session import init_db, engine
+from app.core.redis import init_redis, close_redis
 from app.api import app as api_router
 from app.middleware.correlation import CorrelationIdMiddleware
+from app.middleware.security import SecurityHeadersMiddleware
 from app.utils.logger import logger
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifespan - handles startup and shutdown events.
-    """
+    """Application lifespan - handles startup and shutdown events."""
     # Startup
     logger.info("Starting %s v%s", settings.APP_NAME, settings.APP_VERSION)
     await init_db()
-    logger.info("Database initialized successfully")
+    await init_redis()
+    logger.info("Database and Redis initialized successfully")
     
     yield
     
     # Shutdown
     logger.info("Shutting down %s", settings.APP_NAME)
     await engine.dispose()
-    logger.info("Database connections closed")
+    await close_redis()
+    logger.info("Database and Redis connections closed")
 
 
 app = FastAPI(
