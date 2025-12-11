@@ -1,6 +1,6 @@
 from typing import Optional, List
 from fastapi import Depends, HTTPException, Header, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
@@ -10,6 +10,7 @@ from app.services.api_key import validate_api_key
 
 
 security = HTTPBearer(auto_error=False)
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def get_current_user_from_token(
@@ -48,14 +49,14 @@ async def get_current_user_from_token(
 
 
 async def get_current_user_from_api_key(
-    x_api_key: Optional[str] = Header(None, alias="x-api-key"),
+    x_api_key: Optional[str] = Depends(api_key_header),
     db: AsyncSession = Depends(get_db)
 ) -> tuple[Optional[User], Optional[APIKey]]:
     """
     Get current user from API key.
     
     Args:
-        x_api_key: API key from header
+        x_api_key: API key from header (X-API-Key)
         db: Database session
         
     Returns:
