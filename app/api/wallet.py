@@ -325,7 +325,10 @@ async def get_wallet_balance(
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Balance retrieved successfully",
-        data={"balance": str(wallet.balance)}
+        data={
+            "wallet_number": wallet.wallet_number,
+            "balance": str(wallet.balance)
+        }
     )
 
 
