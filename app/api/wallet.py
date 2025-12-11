@@ -58,6 +58,29 @@ async def deposit_to_wallet(
         )
 
 
+@router.get("/payment/callback", summary="Payment Callback")
+async def deposit_callback(request: Request):
+    """Handle Paystack redirect after payment."""
+    reference = request.query_params.get("reference") or request.query_params.get("trxref")
+    if not reference:
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="Payment processing",
+            data={"status": "processing"}
+        )
+    
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message="Payment received. Check your wallet balance or transaction history.",
+        data={
+            "reference": reference,
+            "status": "completed",
+            "note": "Funds will be credited within seconds via webhook"
+        }
+    )
+
+
+
 @router.get(
     "/deposit/{reference}/status",
     summary="Get Deposit Status",
