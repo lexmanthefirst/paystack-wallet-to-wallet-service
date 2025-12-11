@@ -14,9 +14,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Prevent clickjacking attacks
         response.headers["X-Frame-Options"] = "DENY"
         
-        # Enable XSS filter in older browsers
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        
         # Force HTTPS (skip for localhost in development)
         if request.url.hostname != "localhost" and request.url.hostname != "127.0.0.1":
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
