@@ -221,3 +221,39 @@ async def validate_api_key(
             return key_model
             
     return None
+
+
+async def list_user_api_keys(
+    db: AsyncSession,
+    user_id: str,
+    limit: int = 20
+) -> list[APIKey]:
+    """
+    List all API keys for a user with pagination.
+    
+    Args:
+        db: Database session
+        user_id: User ID
+        limit: Maximum number of keys to return (default: 20)
+        
+    Returns:
+        List of APIKey models ordered by created_at descending
+    """
+    logger.debug(f"Listing API keys for user: {user_id}", extra={"limit": limit})
+    
+    result = await db.execute(
+        select(APIKey)
+        .where(APIKey.user_id == user_id)
+        .order_by(APIKey.created_at.desc())
+        .limit(limit)
+    )
+    
+    keys = list(result.scalars().all())
+    
+    logger.info(
+        f"Retrieved {len(keys)} API keys for user",
+        extra={"user_id": user_id, "count": len(keys)}
+    )
+    
+    return keys
+

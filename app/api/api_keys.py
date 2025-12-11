@@ -4,7 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models import User
-from app.schemas.api_key import APIKeyCreate, APIKeyRollover, APIKeyRevoke
+from app.schemas.api_key import (
+    APIKeyCreate, APIKeyRollover, APIKeyRevoke,
+    CreateAPIKeySuccessResponse, ListAPIKeysSuccessResponse, RevokeAPIKeySuccessResponse
+)
 from app.services import api_key as api_key_service
 from app.api.deps import get_current_user_from_token
 from app.utils.responses import success_response, fail_response
@@ -24,7 +27,7 @@ async def require_jwt_auth(current_user: User = Depends(get_current_user_from_to
     return current_user
 
 
-@router.post("/create", status_code=status.HTTP_201_CREATED, summary="Create API Key")
+@router.post("/create", status_code=status.HTTP_201_CREATED, summary="Create API Key", response_model=CreateAPIKeySuccessResponse)
 @rate_limit(max_requests=3, window=timedelta(hours=1))
 async def create_api_key(
     request: Request,
@@ -66,7 +69,7 @@ async def create_api_key(
         )
 
 
-@router.post("/rollover", summary="Rollover Expired API Key")
+@router.post("/rollover", summary="Rollover Expired API Key", response_model=CreateAPIKeySuccessResponse)
 async def rollover_api_key(
     rollover_data: APIKeyRollover,
     current_user: User = Depends(require_jwt_auth),
@@ -99,7 +102,48 @@ async def rollover_api_key(
         )
 
 
-@router.post("/revoke", summary="Revoke API Key")
+@router.get("", summary="List API Keys", status_code=status.HTTP_200_OK, response_model=ListAPIKeysSuccessResponse)
+async def list_api_keys(
+    limit: int = 20,
+    current_user: User = Depends(require_jwt_auth),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    List all API keys for the authenticated user.
+    
+    Args:
+        limit: Maximum number of keys to return (default: 20)
+    
+    Returns API keys ordered by creation date (most recent first).
+    Each key includes: name, permissions, created_at, expires_at, and is_valid status.
+    """
+    api_keys = await api_key_service.list_user_api_keys(
+        db=db,
+        user_id=str(current_user.id),
+        limit=limit
+    )
+    
+    # Format response with is_valid computed field
+    keys_data = [
+        {
+            "id": str(key.id),
+            "name": key.name,
+            "permissions": key.permissions,
+            "created_at": key.created_at.isoformat(),
+            "expires_at": key.expires_at.isoformat(),
+            "is_valid": key.is_valid()
+        }
+        for key in api_keys
+    ]
+    
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message=f"Retrieved {len(keys_data)} API key(s)",
+        data={"keys": keys_data, "count": len(keys_data)}
+    )
+
+
+@router.post("/revoke", summary="Revoke API Key", response_model=RevokeAPIKeySuccessResponse)
 async def revoke_api_key(
     revoke_data: APIKeyRevoke,
     current_user: User = Depends(require_jwt_auth),
