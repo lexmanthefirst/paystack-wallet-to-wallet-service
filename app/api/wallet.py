@@ -258,6 +258,39 @@ async def paystack_webhook(
                 message=f"Error processing webhook: {str(e)}"
             )
     
+    # Handle charge.failed event
+    elif event == "charge.failed":
+        reference = event_data.get("reference")
+        
+        if not reference:
+            return fail_response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Missing transaction reference"
+            )
+        
+        # Use webhook service to process the failed charge
+        try:
+            from app.services.webhook import process_failed_charge
+            
+            result = await process_failed_charge(db=db, reference=reference)
+            
+            return success_response(
+                status_code=status.HTTP_200_OK,
+                message=result.get("message", "Failed charge processed"),
+                data={"status": result.get("status", True)}
+            )
+            
+        except ValueError as e:
+            return fail_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message=str(e)
+            )
+        except Exception as e:
+            return fail_response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"Error processing failed charge: {str(e)}"
+            )
+    
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Webhook received",

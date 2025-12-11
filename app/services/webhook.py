@@ -59,3 +59,51 @@ async def process_successful_charge(
     )
     
     return {"status": True, "message": "Wallet credited successfully"}
+
+
+async def process_failed_charge(
+    db: AsyncSession,
+    reference: str
+) -> Dict:
+    """
+    Process a failed charge event from Paystack webhook.
+    
+    Args:
+        db: Database session
+        reference: Transaction reference from Paystack
+        
+    Returns:
+        Dict with processing status
+    """
+    logger.info(f"Processing failed charge webhook: {reference}")
+    
+    # Get transaction
+    transaction = await transaction_service.get_transaction_by_reference(db, reference)
+    
+    if not transaction:
+        # Transaction not found, possibly not from our system
+        logger.warning(f"Transaction not found for reference: {reference}")
+        return {"status": True, "message": "Transaction not found"}
+    
+    # Check if already marked as failed
+    if transaction.status == TransactionStatus.FAILED:
+        logger.info(f"Transaction already marked as failed: {reference}")
+        return {"status": True, "message": "Transaction already marked as failed"}
+    
+    # Check if already successful (shouldn't happen, but safety check)
+    if transaction.status == TransactionStatus.SUCCESS:
+        logger.warning(f"Cannot mark successful transaction as failed: {reference}")
+        return {"status": False, "message": "Transaction already successful"}
+    
+    # Mark transaction as failed
+    transaction.status = TransactionStatus.FAILED
+    await db.commit()
+    await db.refresh(transaction)
+    
+    logger.info(
+        f"Transaction marked as failed: {reference}",
+        extra={"amount": str(transaction.amount), "wallet_id": str(transaction.wallet_id)}
+    )
+    
+    return {"status": True, "message": "Transaction marked as failed"}
+
