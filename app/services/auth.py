@@ -115,3 +115,103 @@ async def process_google_oauth_callback(db: AsyncSession, code: str) -> Tuple[Us
     )
     
     return user, jwt_token
+
+
+async def create_refresh_token(db: AsyncSession, user_id: str) -> str:
+    """
+    Create a refresh token for a user.
+    
+    Args:
+        db: Database session
+        user_id: User ID
+        
+    Returns:
+        Plain refresh token (only shown once)
+    """
+    from app.models import RefreshToken
+    import secrets
+    
+    # Generate random refresh token
+    plain_token = secrets.token_urlsafe(32)
+    token_hash = hash_key(plain_token)
+    
+    # Calculate expiration (30 days)
+    expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    
+    # Create refresh token record
+    refresh_token = RefreshToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        expires_at=expires_at
+    )
+    
+    db.add(refresh_token)
+    await db.commit()
+    await db.refresh(refresh_token)
+    
+    return plain_token
+
+
+async def validate_refresh_token(db: AsyncSession, token: str) -> Optional[User]:
+    """
+    Validate a refresh token and return the associated user.
+    
+    Args:
+        db: Database session
+        token: Plain refresh token
+        
+    Returns:
+        User model if token is valid, None otherwise
+    """
+    from app.models import RefreshToken
+    from sqlalchemy import select
+    
+    # Get all non-revoked, non-expired tokens
+    result = await db.execute(
+        select(RefreshToken)
+        .where(RefreshToken.revoked == False)
+        .where(RefreshToken.expires_at > datetime.utcnow())
+    )
+    candidate_tokens = result.scalars().all()
+    
+    # Verify hash against candidates
+    for refresh_token in candidate_tokens:
+        if verify_key(token, refresh_token.token_hash):
+            # Found matching token, return user
+            result = await db.execute(
+                select(User).where(User.id == refresh_token.user_id)
+            )
+            return result.scalar_one_or_none()
+    
+    return None
+
+
+async def revoke_refresh_token(db: AsyncSession, token: str) -> bool:
+    """
+    Revoke a refresh token.
+    
+    Args:
+        db: Database session
+        token: Plain refresh token
+        
+    Returns:
+        True if token was revoked, False if not found
+    """
+    from app.models import RefreshToken
+    from sqlalchemy import select
+    
+    # Get all non-revoked tokens
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.revoked == False)
+    )
+    candidate_tokens = result.scalars().all()
+    
+    # Find and revoke matching token
+    for refresh_token in candidate_tokens:
+        if verify_key(token, refresh_token.token_hash):
+            refresh_token.revoked = True
+            await db.commit()
+            return True
+    
+    return False
+

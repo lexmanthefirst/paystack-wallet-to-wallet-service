@@ -15,8 +15,11 @@ class User(BaseModel):
     google_id = Column(String, unique=True, nullable=False, index=True)
     name = Column(String, nullable=False)
     
+    # Relationships
     wallet = relationship("Wallet", back_populates="user", uselist=False, cascade="all, delete-orphan")
     api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User {self.email}>"
+
