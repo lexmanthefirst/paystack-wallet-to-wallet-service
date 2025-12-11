@@ -9,7 +9,7 @@ async def check_rate_limit(key: str, max_requests: int, window: timedelta) -> bo
     """
     Check if request is within rate limit using Fixed Window algorithm.
     
-    Returns True if allowed, raises HTTPException if exceeded.
+    Returns True if allowed, raises HTTPException if exceeded or Redis unavailable.
     """
     try:
         redis = get_redis()
@@ -33,7 +33,11 @@ async def check_rate_limit(key: str, max_requests: int, window: timedelta) -> bo
         raise
     except Exception as e:
         logger.error(f"Rate limit check failed: {e}")
-        return True
+        # Fail-closed: block request if Redis is down
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service is temporarily unavailable, please try again later."
+        )
 
 
 def rate_limit(max_requests: int, window: timedelta):
