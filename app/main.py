@@ -46,9 +46,7 @@ app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Configure CORS with restricted origins
-ALLOWED_ORIGINS = [
-    "https://pleasing-tranquility-production.up.railway.app",
-]
+ALLOWED_ORIGINS = settings.CORS_ALLOWED_ORIGINS.split(',') if settings.CORS_ALLOWED_ORIGINS else []
 
 if settings.DEBUG:
     ALLOWED_ORIGINS.extend([
