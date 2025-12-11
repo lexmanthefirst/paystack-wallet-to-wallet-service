@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models import User
-from app.schemas.wallet import DepositRequest, TransferRequest
+from app.schemas.wallet import (
+    DepositRequest, TransferRequest,
+    BalanceSuccessResponse, DepositSuccessResponse, 
+    TransferSuccessResponse, TransactionsSuccessResponse
+)
 from app.services import wallet as wallet_service
 from app.services import transaction as transaction_service
 from app.services.paystack import paystack_service
@@ -16,7 +20,7 @@ from app.utils.rate_limit import rate_limit
 router = APIRouter(prefix="/wallet", tags=["Wallet"])
 
 
-@router.post("/deposit")
+@router.post("/deposit", response_model=DepositSuccessResponse)
 @rate_limit(max_requests=5, window=timedelta(minutes=1))
 async def deposit_to_wallet(
     request: Request,
@@ -337,7 +341,7 @@ async def check_deposit_status(
     )
 
 
-@router.get("/balance")
+@router.get("/balance", response_model=BalanceSuccessResponse)
 async def get_wallet_balance(
     current_user: User = Depends(require_permissions(["read"])),
     db: AsyncSession = Depends(get_db)
@@ -365,7 +369,7 @@ async def get_wallet_balance(
     )
 
 
-@router.post("/transfer")
+@router.post("/transfer", response_model=TransferSuccessResponse)
 async def transfer_funds(
     transfer_data: TransferRequest,
     current_user: User = Depends(require_permissions(["transfer"])),
@@ -432,13 +436,17 @@ async def transfer_funds(
         )
 
 
-@router.get("/transactions")
+@router.get("/transactions", response_model=TransactionsSuccessResponse)
 async def get_transaction_history(
+    limit: int = 50,
     current_user: User = Depends(require_permissions(["read"])),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get transaction history.
+    
+    Args:
+        limit: Maximum number of transactions to return (default: 50)
     
     Requires JWT or API key with 'read' permission.
     """
@@ -450,7 +458,11 @@ async def get_transaction_history(
             message="Wallet not found"
         )
     
-    transactions = await wallet_service.get_wallet_transactions(db, str(wallet.id))
+    transactions = await wallet_service.get_wallet_transactions(
+        db, 
+        str(wallet.id),
+        limit=limit
+    )
     
     # Format transactions for response
     transactions_data = [
@@ -468,5 +480,5 @@ async def get_transaction_history(
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Transaction history retrieved successfully",
-        data={"transactions": transactions_data}
+        data={"transactions": transactions_data, "count": len(transactions_data)}
     )
