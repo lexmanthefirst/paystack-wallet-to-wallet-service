@@ -42,13 +42,27 @@ app = FastAPI(
 # Add correlation ID middleware (for request tracking)
 app.add_middleware(CorrelationIdMiddleware)
 
-# Configure CORS
+# Add security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Configure CORS with restricted origins
+ALLOWED_ORIGINS = [
+    "https://pleasing-tranquility-production.up.railway.app",
+]
+
+if settings.DEBUG:
+    ALLOWED_ORIGINS.extend([
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Correlation-ID"],
+    max_age=3600,
 )
 
 
