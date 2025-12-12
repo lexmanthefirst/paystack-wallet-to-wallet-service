@@ -19,13 +19,13 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 OAUTH_STATE_PREFIX = "oauth:state:"
-OAUTH_STATE_TTL = 300  # 5 minutes
+OAUTH_STATE_TTL = 300
 
 
 @router.get("/google", response_model=GoogleAuthSuccessResponse)
 async def google_login():
     """Get Google OAuth authorization URL."""
-    redis = await get_redis()
+    redis = get_redis()  # Synchronous - no await
     state = secrets.token_urlsafe(32)
     
     # Store state in Redis with TTL
