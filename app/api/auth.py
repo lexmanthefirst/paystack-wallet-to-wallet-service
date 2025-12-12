@@ -1,7 +1,6 @@
 import secrets
 import httpx
 from datetime import datetime, timedelta
-from typing import Dict
 from fastapi import APIRouter, Request, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from urllib.parse import urlencode
@@ -14,20 +13,27 @@ from app.api.deps import get_current_user_from_token
 from app.utils.responses import success_response, fail_response
 from app.utils.logger import logger
 from app.config import settings
+from app.core.redis import get_redis
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
-
-# In-memory state store for OAuth CSRF protection
-_oauth_states: Dict[str, datetime] = {}
+OAUTH_STATE_PREFIX = "oauth:state:"
+OAUTH_STATE_TTL = 300  # 5 minutes
 
 
 @router.get("/google", response_model=GoogleAuthSuccessResponse)
 async def google_login():
     """Get Google OAuth authorization URL."""
+    redis = await get_redis()
     state = secrets.token_urlsafe(32)
-    _oauth_states[state] = datetime.utcnow()
+    
+    # Store state in Redis with TTL
+    await redis.setex(
+        f"{OAUTH_STATE_PREFIX}{state}",
+        OAUTH_STATE_TTL,
+        datetime.utcnow().isoformat()
+    )
     
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
@@ -66,22 +72,38 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
             message="State parameter not found"
         )
     
-    if state not in _oauth_states:
+    # Validate state from Redis
+    redis = await get_redis()
+    state_key = f"{OAUTH_STATE_PREFIX}{state}"
+    state_time_str = await redis.get(state_key)
+    
+    if not state_time_str:
         logger.warning(f"Invalid OAuth state received: {state[:10]}...")
         return fail_response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Invalid or expired state parameter. Please try logging in again."
         )
     
-    state_age = datetime.utcnow() - _oauth_states[state]
-    if state_age > timedelta(minutes=5):
-        del _oauth_states[state]
+    # Validate state age (Redis TTL handles expiry, but double-check)
+    try:
+        state_time = datetime.fromisoformat(state_time_str)
+        state_age = datetime.utcnow() - state_time
+        if state_age > timedelta(minutes=5):
+            await redis.delete(state_key)
+            return fail_response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="State parameter expired. Please try logging in again."
+            )
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid state timestamp format: {e}")
+        await redis.delete(state_key)
         return fail_response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="State parameter expired. Please try logging in again."
+            message="Invalid state parameter."
         )
     
-    del _oauth_states[state]
+    # Delete state after successful validation (one-time use)
+    await redis.delete(state_key)
     
     try:
         user, jwt_token = await auth_service.process_google_oauth_callback(db=db, code=code)
