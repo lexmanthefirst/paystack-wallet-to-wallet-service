@@ -73,9 +73,11 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
         )
     
     # Validate state from Redis
-    redis = await get_redis()
+    redis = get_redis()
     state_key = f"{OAUTH_STATE_PREFIX}{state}"
-    state_time_str = await redis.get(state_key)
+    
+    # Atomically get and delete the state
+    state_time_str = await redis.getdel(state_key)
     
     if not state_time_str:
         logger.warning(f"Invalid OAuth state received: {state[:10]}...")
@@ -84,26 +86,14 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
             message="Invalid or expired state parameter. Please try logging in again."
         )
     
-    # Validate state age (Redis TTL handles expiry, but double-check)
     try:
-        state_time = datetime.fromisoformat(state_time_str)
-        state_age = datetime.utcnow() - state_time
-        if state_age > timedelta(minutes=5):
-            await redis.delete(state_key)
-            return fail_response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="State parameter expired. Please try logging in again."
-            )
+        datetime.fromisoformat(state_time_str)
     except (ValueError, TypeError) as e:
         logger.error(f"Invalid state timestamp format: {e}")
-        await redis.delete(state_key)
         return fail_response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Invalid state parameter."
         )
-    
-    # Delete state after successful validation (one-time use)
-    await redis.delete(state_key)
     
     try:
         user, jwt_token = await auth_service.process_google_oauth_callback(db=db, code=code)
