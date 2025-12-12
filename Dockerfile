@@ -21,12 +21,12 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files needed for installation
+# Copy project files
 COPY pyproject.toml .
 COPY app ./app
 
-# Install dependencies (including optional dev dependencies for compatibility)
-RUN pip install --no-cache-dir ".[dev]"
+# Install dependencies
+RUN pip install --no-cache-dir .
 
 # Expose port
 EXPOSE 8000
