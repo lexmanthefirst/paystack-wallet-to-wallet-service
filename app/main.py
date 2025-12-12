@@ -72,6 +72,13 @@ async def root():
         "docs": "/docs"
     }
 
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring and container orchestration."""
+    return {"status": "healthy"}
+
+
 # Include API router with prefix
 app.include_router(api_router, prefix="/api/v1")
 
