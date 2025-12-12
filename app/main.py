@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -72,13 +71,6 @@ async def root():
         "version": settings.APP_VERSION,
         "docs": "/docs"
     }
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
-
 
 # Include API router with prefix
 app.include_router(api_router, prefix="/api/v1")
