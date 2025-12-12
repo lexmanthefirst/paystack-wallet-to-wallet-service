@@ -27,7 +27,7 @@ def verify_key(plain_key: str, hashed_key: str) -> bool:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create a JWT access token."""
+    """Create JWT access token."""
     to_encode = data.copy()
     
     if expires_delta:
@@ -41,7 +41,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def decode_access_token(token: str) -> Optional[dict]:
-    """Decode and verify a JWT access token."""
+    """Decode and verify JWT access token."""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
@@ -68,12 +68,7 @@ def parse_expiry(expiry: str) -> datetime:
 
 
 async def process_google_oauth_callback(db: AsyncSession, code: str) -> Tuple[User, str]:
-    """
-    Process Google OAuth callback.
-    
-    Exchanges authorization code for user info, creates/retrieves user with wallet,
-    and generates JWT token.
-    """
+    """Exchange Google authorization code for user info and generate JWT."""
     token_data = {
         "code": code,
         "client_id": settings.GOOGLE_CLIENT_ID,
@@ -86,9 +81,8 @@ async def process_google_oauth_callback(db: AsyncSession, code: str) -> Tuple[Us
         token_response = await client.post(GOOGLE_TOKEN_ENDPOINT, data=token_data)
         token_response.raise_for_status()
         tokens = token_response.json()
-        access_token = tokens.get("access_token")
         
-        if not access_token:
+        if not (access_token := tokens.get("access_token")):
             raise ValueError("Failed to get access token from Google")
         
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -103,47 +97,24 @@ async def process_google_oauth_callback(db: AsyncSession, code: str) -> Tuple[Us
     if not email or not google_id:
         raise ValueError("Failed to get user info from Google")
     
-    user = await get_or_create_user_from_google(
-        db=db,
-        email=email,
-        google_id=google_id,
-        name=name
-    )
-    
-    jwt_token = create_access_token(
-        data={"sub": str(user.id), "email": user.email}
-    )
+    user = await get_or_create_user_from_google(db=db, email=email, google_id=google_id, name=name)
+    jwt_token = create_access_token(data={"sub": str(user.id), "email": user.email})
     
     return user, jwt_token
 
 
+
+
 async def create_refresh_token(db: AsyncSession, user_id: str) -> str:
-    """
-    Create a refresh token for a user.
-    
-    Args:
-        db: Database session
-        user_id: User ID
-        
-    Returns:
-        Plain refresh token (only shown once)
-    """
+    """Create refresh token for user (30 days expiry)."""
     from app.models import RefreshToken
     import secrets
     
-    # Generate random refresh token
     plain_token = secrets.token_urlsafe(32)
     token_hash = hash_key(plain_token)
-    
-    # Calculate expiration (30 days)
     expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     
-    # Create refresh token record
-    refresh_token = RefreshToken(
-        user_id=user_id,
-        token_hash=token_hash,
-        expires_at=expires_at
-    )
+    refresh_token = RefreshToken(user_id=user_id, token_hash=token_hash, expires_at=expires_at)
     
     db.add(refresh_token)
     await db.commit()
