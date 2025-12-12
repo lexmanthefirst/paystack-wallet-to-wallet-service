@@ -25,8 +25,8 @@ RUN apt-get update \
 COPY pyproject.toml .
 COPY app ./app
 
-# Install dependencies
-RUN pip install --no-cache-dir .
+# Install dependencies (including optional dev dependencies for compatibility)
+RUN pip install --no-cache-dir ".[dev]"
 
 # Expose port
 EXPOSE 8000
