@@ -47,7 +47,7 @@ async def credit_wallet(
     if amount <= 0:
         raise ValueError("Amount must be positive")
 
-    logger.info(f"Crediting {wallet.wallet_number}: {amount}, ref: {transaction.reference}")
+    logger.info(f"Crediting wallet: {wallet.wallet_number}",extra={"amount": str(amount), "transaction_ref": transaction.reference})
     
     wallet.balance += amount
     transaction.status = TransactionStatus.SUCCESS

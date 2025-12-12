@@ -140,11 +140,12 @@ async def paystack_webhook(request: Request, db: AsyncSession = Depends(get_db))
             age = datetime.now(timezone.utc) - webhook_time
             
             if age > timedelta(minutes=5):
-                from app.utils.logger import logger
                 logger.warning(f"Webhook rejected - too old: {age.total_seconds()}s", extra={"age_seconds": age.total_seconds(), "created_at": created_at})
-                return fail_response(400, "Webhook expired")
+                return fail_response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Webhook expired"
+                )
         except (ValueError, TypeError) as e:
-            from app.utils.logger import logger
             logger.warning(f"Could not parse webhook timestamp: {created_at}", exc_info=True)
     
     event = data.get("event")

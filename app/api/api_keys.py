@@ -12,6 +12,7 @@ from app.services import api_key as api_key_service
 from app.api.deps import get_current_user_from_token
 from app.utils.responses import success_response, fail_response
 from app.utils.rate_limit import rate_limit
+from app.utils.logger import logger
 
 router = APIRouter(prefix="/keys", tags=["API Keys"])
 
