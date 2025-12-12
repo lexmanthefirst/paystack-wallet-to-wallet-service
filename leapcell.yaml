@@ -1,0 +1,15 @@
+name: wallet-service
+runtime: python
+
+build:
+  command: pip install --no-cache-dir .
+  
+start:
+  command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+  
+port: 8080
+
+env:
+  # Python settings
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"

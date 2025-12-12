@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -74,7 +73,7 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get("/health", include_in_schema=False)
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
