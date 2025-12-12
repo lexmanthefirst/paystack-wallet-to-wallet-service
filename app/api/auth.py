@@ -42,7 +42,11 @@ async def google_login():
     authorization_url = f"{GOOGLE_AUTH_ENDPOINT}?{urlencode(params)}"
     logger.info(f"Initiating Google login with redirect_uri: {settings.GOOGLE_REDIRECT_URI}")
     
-    return success_response(200, "Google OAuth URL generated", {"authorization_url": authorization_url})
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message="Google OAuth URL generated",
+        data={"authorization_url": authorization_url}
+    )
 
 
 @router.get("/google/callback", include_in_schema=False)
@@ -52,18 +56,30 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     state = request.query_params.get("state")
     
     if not code:
-        return fail_response(400, "Authorization code not found")
+        return fail_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Authorization code not found"
+        )
     if not state:
-        return fail_response(400, "State parameter not found")
+        return fail_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="State parameter not found"
+        )
     
     if state not in _oauth_states:
         logger.warning(f"Invalid OAuth state received: {state[:10]}...")
-        return fail_response(400, "Invalid or expired state parameter. Please try logging in again.")
+        return fail_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Invalid or expired state parameter. Please try logging in again."
+        )
     
     state_age = datetime.utcnow() - _oauth_states[state]
     if state_age > timedelta(minutes=5):
         del _oauth_states[state]
-        return fail_response(400, "State parameter expired. Please try logging in again.")
+        return fail_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="State parameter expired. Please try logging in again."
+        )
     
     del _oauth_states[state]
     
@@ -73,7 +89,10 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
         
         logger.info(f"Google auth successful for {user.email}")
         
-        return success_response(200, "Authentication successful", {
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="Authentication successful",
+            data={
             "access_token": jwt_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
@@ -85,13 +104,22 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
         })
     except httpx.HTTPStatusError as e:
         logger.error(f"Google OAuth HTTP error: {e.response.status_code} - {e.response.text}")
-        return fail_response(400, f"Google authentication failed: {str(e)}")
+        return fail_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Google authentication failed: {str(e)}"
+        )
     except ValueError as e:
         logger.error(f"Google OAuth validation error: {str(e)}")
-        return fail_response(400, str(e))
+        return fail_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(e)
+        )
     except Exception as e:
         logger.error(f"Google OAuth error: {str(e)}", exc_info=True)
-        return fail_response(500, f"Authentication error: {str(e)}")
+        return fail_response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Authentication error: {str(e)}"
+        )
 
 
 
@@ -108,18 +136,27 @@ async def refresh_access_token(refresh_request: RefreshRequest, db: AsyncSession
     try:
         user = await auth_service.validate_refresh_token(db=db, token=refresh_request.refresh_token)
         if not user:
-            return fail_response(401, "Invalid or expired refresh token")
+            return fail_response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                message="Invalid or expired refresh token"
+            )
         
         new_access_token = auth_service.create_access_token(data={"sub": str(user.id), "email": user.email})
         logger.info(f"Token refreshed for user: {user.email}")
         
-        return success_response(200, "Token refreshed successfully", {
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="Token refreshed successfully",
+            data={
             "access_token": new_access_token,
             "token_type": "bearer"
         })
     except Exception as e:
         logger.error(f"Token refresh error: {str(e)}", exc_info=True)
-        return fail_response(500, f"Token refresh error: {str(e)}")
+        return fail_response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Token refresh error: {str(e)}"
+        )
 
 
 
@@ -130,11 +167,21 @@ async def logout(refresh_request: RefreshRequest, db: AsyncSession = Depends(get
     try:
         revoked = await auth_service.revoke_refresh_token(db=db, token=refresh_request.refresh_token)
         if not revoked:
-            return fail_response(404, "Refresh token not found or already revoked")
+            return fail_response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Refresh token not found or already revoked"
+            )
         
         logger.info("User logged out successfully")
-        return success_response(200, "Logged out successfully", {"revoked": True})
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="Logged out successfully",
+            data={"revoked": True}
+        )
     except Exception as e:
         logger.error(f"Logout error: {str(e)}", exc_info=True)
-        return fail_response(500, f"Logout error: {str(e)}")
+        return fail_response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Logout error: {str(e)}"
+        )
 

@@ -41,7 +41,10 @@ async def create_api_key(
             db=db, user_id=str(current_user.id), key_data=key_data
         )
         
-        return success_response(201, "API key created successfully", {
+        return success_response(
+            status_code=status.HTTP_201_CREATED,
+            message="API key created successfully",
+            data={
             "key_id": str(api_key.id),
             "api_key": plain_key,
             "expires_at": api_key.expires_at.isoformat(),
@@ -49,11 +52,16 @@ async def create_api_key(
             "permissions": api_key.permissions
         })
     except ValueError as e:
-        return fail_response(400, str(e))
+        return fail_response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(e)
+        )
     except Exception as e:
-        import logging
-        logging.error(f"API key creation failed: {str(e)}", exc_info=True)
-        return fail_response(500, f"Failed to create API key: {str(e)}")
+        logger.error(f"API key creation failed: {str(e)}", exc_info=True)
+        return fail_response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Failed to create API key: {str(e)}"
+        )
 
 
 
@@ -70,7 +78,10 @@ async def rollover_api_key(
             db=db, user_id=str(current_user.id), rollover_data=rollover_data
         )
         
-        return success_response(200, "API key rolled over successfully", {
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="API key rolled over successfully",
+            data={
             "key_id": str(api_key.id),
             "api_key": plain_key,
             "expires_at": api_key.expires_at.isoformat(),
@@ -78,7 +89,10 @@ async def rollover_api_key(
             "permissions": api_key.permissions
         })
     except ValueError as e:
-        return fail_response(404, str(e))
+        return fail_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message=str(e)
+        )
 
 
 @router.get("", response_model=ListAPIKeysSuccessResponse)
@@ -99,7 +113,10 @@ async def list_api_keys(
         "is_valid": key.is_valid()
     } for key in api_keys]
     
-    return success_response(200, f"Retrieved {len(keys_data)} API key(s)", {
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message=f"Retrieved {len(keys_data)} API key(s)",
+        data={
         "keys": keys_data, 
         "count": len(keys_data)
     })
@@ -118,7 +135,13 @@ async def revoke_api_key(
         await api_key_service.revoke_api_key(
             db=db, user_id=str(current_user.id), key_id=str(revoke_data.key_id)
         )
-        return success_response(200, "API key revoked successfully")
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="API key revoked successfully"
+        )
     except ValueError as e:
-        return fail_response(404, str(e))
+        return fail_response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message=str(e)
+        )
 
