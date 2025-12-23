@@ -1,13 +1,16 @@
-import bcrypt
-import httpx
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
+
+import bcrypt
+import httpx
 from jose import JWTError, jwt
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models import RefreshToken, User
 from app.services.user import get_or_create_user_from_google
-from app.models import User
 
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v1/userinfo"
@@ -107,9 +110,6 @@ async def process_google_oauth_callback(db: AsyncSession, code: str) -> Tuple[Us
 
 async def create_refresh_token(db: AsyncSession, user_id: str) -> str:
     """Create refresh token for user (30 days expiry)."""
-    from app.models import RefreshToken
-    import secrets
-    
     plain_token = secrets.token_urlsafe(32)
     token_hash = hash_key(plain_token)
     expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
@@ -134,9 +134,6 @@ async def validate_refresh_token(db: AsyncSession, token: str) -> Optional[User]
     Returns:
         User model if token is valid, None otherwise
     """
-    from app.models import RefreshToken
-    from sqlalchemy import select
-    
     # Get all non-revoked, non-expired tokens
     result = await db.execute(
         select(RefreshToken)
@@ -168,9 +165,6 @@ async def revoke_refresh_token(db: AsyncSession, token: str) -> bool:
     Returns:
         True if token was revoked, False if not found
     """
-    from app.models import RefreshToken
-    from sqlalchemy import select
-    
     # Get all non-revoked tokens
     result = await db.execute(
         select(RefreshToken).where(RefreshToken.revoked == False)
